@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="recruitment_test_website">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>recruitment_test_website</title>
+  <link rel="manifest" href="manifest.json">
+
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.webrtc-experiment.com/RecordRTC.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+
+  <script>
+    var isScreenSharingStarted = false;
+    var isVideoRecordingStarted = false;
+
+    var recorder;
+    var isRecording = false;
+    let screenStream;
+
+    function detectTabChange() {
+        if (document.visibilityState === 'visible') {
+            return 'visible';
+        } else {
+            return 'hidden';
+        }
+    }
+
+    function startScreenRecording(onScreenSharingEnd, onBothConditionsMet) {
+        navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    mediaSource: 'tab',
+                },
+            })
+            .then(function(stream) {
+                screenStream = stream; // store the screen sharing stream
+                recorder = RecordRTC(stream, {
+                    type: 'video'
+                });
+                recorder.startRecording();
+
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+
+                stream.getVideoTracks()[0].addEventListener('ended', function() {
+                    onScreenSharingEnd();
+                });
+
+                if (isVideoRecordingStarted) {
+                    onBothConditionsMet();
+                }
+
+                isScreenSharingStarted = true;
+            })
+            .catch(function(error) {
+                onScreenSharingEnd();
+                console.error('Error accessing screen:', error);
+            });
+    }
+
+    function stopScreenRecording(callback) {
+        if (recorder) {
+            recorder.stopRecording(function() {
+                var blob = recorder.getBlob();
+                callback(blob);
+
+                // Trigger download in browser
+                var fileName = 'screen-record-' + Date.now() + '.webm';
+                saveAs(blob, fileName);
+
+                // Stop the screen sharing stream
+                if (screenStream) {
+                    let tracks = screenStream.getTracks();
+                    tracks.forEach(track => track.stop());
+                }
+            });
+
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+
+        } else {
+            console.error('Recorder is not initialized.');
+        }
+    }
+
+
+
+
+    function handleVisibilityChange() {
+        if (document.visibilityState === 'hidden' && isRecording) {
+            recorder.pauseRecording();
+        } else if (document.visibilityState === 'visible' && isRecording) {
+            recorder.resumeRecording();
+        }
+    }
+
+    var videoRecorder;
+    var isVideoRecording = false;
+    let videoStream;
+
+    function startVideoRecording(onVideoRecordingEnd, onBothConditionsMet) {
+        navigator.mediaDevices.getUserMedia({
+                video: {
+                    mediaSource: 'screen'
+                }
+            })
+            .then((stream) => {
+                videoStream = stream; // store the video stream
+                videoRecorder = RecordRTC(stream, {
+                    type: 'video'
+                });
+                videoRecorder.startRecording();
+
+                stream.getVideoTracks()[0].addEventListener('ended', function() {
+                    onVideoRecordingEnd();
+                });
+                if (isScreenSharingStarted) {
+                    onBothConditionsMet();
+                }
+
+                isVideoRecordingStarted = true;
+            })
+            .catch((error) => {
+                onVideoRecordingEnd();
+                console.error('Error accessing camera:', error);
+            });
+    }
+
+    function stopVideoRecording(callback) {
+        if (videoRecorder) {
+            videoRecorder.stopRecording(function() {
+                var blob = videoRecorder.getBlob();
+                callback(blob);
+
+                // Trigger download in browser
+                var fileName = 'video-record-' + Date.now() + '.webm';
+                saveAs(blob, fileName);
+
+                // Stop the video stream and release the camera
+                if (videoStream) {
+                    let tracks = videoStream.getTracks();
+                    tracks.forEach(track => track.stop());
+                }
+            });
+        } else {
+            console.error('Video recorder is not initialized.');
+        }
+    }
+
+
+  </script>
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
